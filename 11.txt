@@ -1,0 +1,36 @@
+一.Andromium OS
+硬件：Androimium底座，手机必须处于充电状态，chromecast
+二.华为mate10
+硬件：Type-C To HDMI线，连接显示器后，手机上会有触控板，可以输入，有整套的图形操作界面，同样有开始菜单、桌面图标与任务栏，拖拽应用、双击全屏，右键菜单也一个不少，手机上安装的应用都会显示在左下角的“开始菜单”中，所有应用都能打开，已经适配电脑模式的应用可以全屏显示调整大小，而尚未适配的也会小窗显示，方便多任务操作。
+
+
+三。Maru os on nexus 5 and nexus 7
+不连接电脑时，就是一个android手机，连接电脑时，会运行一个容器，里面是一个Debian，界面和正常的linux桌面一样，只支持Nexus5 7和6P等设备，需要mhl接口
+Maru custom ROM includes two operating systems:
+Android 5.1 Lollipop?for mobile phones
+Debian-Linux?for desktop monitor
+四。Leena desktop UI
+五。Ubuntu Touch：
+它是使用容器，可以新建一个容器，然后地容器里安装桌面级软件
+六。Remix os （jide）：1.可以在PC上安装的android os，2.可以将手机转成PC模式
+七。Win 10 continuum
+八。vnc或者rdp
+连接云端os
+九。将android手机界面多屏显示？？不能同时在手机上操作？？
+支持扩展屏幕
+支持蓝牙鼠标键盘
+
+技术方案：
+一。容器
+如Samsung DEX, HUAWEI, Maru OS, Ubuntu Touch, (https://forums.docker.com/t/is-it-possible-to-runn-docker-engine-on-android-devices/16135/4)
+1.容器内的os如何操作手机上安装的app？？
+2.容器内的os如何显示到monitor？？
+3.容器内的os如何相应鼠标键盘
+
+二。vnc， rdp， 连接云端虚拟机
+三。将手机主界面扩展显示，并支持外接鼠标键盘
+
+
+参考连接：
+让你的手机变身电脑--我所知道的几种方式：https://blog.csdn.net/zd200572/article/details/86747838
+Maru OS — Android ROM that Turns into Debian Linux When Connected to a PC：https://thehackernews.com/2016/02/maru-android-debian-linux.html
