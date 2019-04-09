@@ -1,0 +1,87 @@
+# -*- android技术内幕 -*-
+
+
+* 准备工作 
+** Android系统架构 
+应用程序层
+系统框架层
+| <12>         | <40>                                     |
+| 名称         | 功能描述                                 |
+| 活动管理器   | 管理应用程序生命周期并提供常用的导航回退功能         |
+| 窗口管理器   | 管理所有开启的窗口程序                             |
+| 内容提供着   | 使应用程序可以访问另一个应用程序的数据，或者共享他们自己的数据   |
+| 视图系统     | 用来构建应用程序，包括list、grid、textbox、button等     |
+| 通知管理器   | 使应用程序可以在状态栏中显示自定义的提示信息                   |
+| 包管理器     | 管理安装的应用程序                                |
+| 资源管理器   | 提供各种资源供应用程序使用                           |
+| 硬件服务     | telephony manager;location manager;blutooth service; wifi service;usb service; sensor service |
+
+系统运行库层
+#+TBLNAME: 系统库
+| 名称 | 功能描述 |
+| Surface Manager | 对显示子系统进行管理，并且为多个应用程序提供2D和3D图层的无缝结合 |
+| Media Frameword | 支持多种格式的音频和视频的回放和录制，同时支持静态图像文件 |
+| SQLite | 应用程序的数据库引擎 |
+| Opengl ES | 该库可以使用硬件3D加速或者使用高度优化的3D软加速 |
+| FreeType | 位图和矢量字体显示 |
+| WebKit | 最新的Web浏览器引擎，支持Android浏览器和一个可嵌入的Web视图 |
+| SSL | 为网络通信提供一种安全协议 |
+| Libc | Android没有采用glibc作为C库，采用的是Google自己开发的Bionic Libc。|
+#+TBLNAME:Android运行时库
+| 核心库 | 主要通过JNI的方式向应用程序框架层提供调用底层程序库的接口 |
+| Dalvik虚拟机 | 没个程序都拥有一个独立的Dalvik虚拟机，执行的是.dex文件 |
+Linux内核层
+--硬件时钟（Alarm）
+--内存分配与共享（Ashmem）
+--低内存管理器（Low Memory Killer）
+--Kernel调试（Kernel Debugger）
+--日子设备（Logger）
+--Android IPC机制（Binder）
+--电源管理（Power Managerment）
+** Android初始化流程
+Linux Kernel--- Init----daemons(usbd,adbd,debuggerd,rild)
+                    ----Zygote进程--Dalvik VM--System Server--Audio Flinger,Surface Flinger
+                    ----runtime--Service Manager--Content Manager,Telephony Service,Buletooth Service...
+** 各个层次之间的相互关系
+App---Runtime Service---Lib 以Location Manager为例
+#+BEGIN_SRC dot :file LocationManager.png :cmdline -Kdot -Tpng
+graph LocationManager{
+  node [ shape = "record" ];
+    subgraph Application{
+        label="Applications";
+        bgcolor="mintcream";
+        app_mgr [label="Application"];
+    }
+    subgraph ApplicationFramework{
+        label="Application Framework";
+        bgcolor="mintcream";
+        loc_mgr [label="Location Manager Service"];
+        pro_mgr [label="GpsLocationProvider"]
+    }
+    subgraph Libraries{
+        label="Libraries";
+        bgcolor="mintcream";
+        pro2_mgr [label="GpsLocationProvider"];
+        so_mgr [label="libgps.so"]
+    }
+    subgraph Kernel{
+        label="Linux Kernel";
+        bgcolor="mintcream";
+        ker_mgr [label="Kernel Driver"]
+    }
+  app_mgr --loc_mgr [label="Binder IPC"];
+  loc_mgr --pro_mgr;
+  pro_mgr --pro2_mgr [label="JNI"];
+  pro2_mgr --so_mgr [label="Dynamic load"];
+  so_mgr --ker_mgr;
+}
+#+END_SRC
+
+#+RESULTS:
+[[file:LocationManager.png]]
+
+App--Runtime Service--Native Service--Lib 以Audio为例
+App--Runtime Server--Native Daemon--Lib 以Telephony Manager为例
+** Android 系统开发
+Android系统开发主要涉及Libraries和Android Runtime，一般是C/C++代码，通过JNI向上层提供调用接口。
+Android系统移植主要涉及硬件抽象层和Linux内核层，主要工作是将驱动移植到不同的硬件上
