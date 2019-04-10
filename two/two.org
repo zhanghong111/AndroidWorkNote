@@ -1,0 +1,27 @@
+* Android的内核机制和结构解析
+** Linux与Android的关系
+*** 为什么会选择Linux
+--强大的内存管理和进程管理方案
+--基于权限的安全模式
+--支持共享库
+--经过认证的驱动模型
+--Linux本身就是开源项目
+*** Android不是Linux
+1.没有本地窗口系统，没有使用Linux的X窗口系统
+2.没有glibc支持，而是用Google开发的Bionic Libc来代替
+3.并不包括一整套标准的Linux使用程序，同时还增加了不少内容，比如：基于ARM架构增加的Gold-Fish平台，以及yaffs2 FLASH文件系统等。
+4.Android专有的驱动程序
+1）Android Binder 基于OpenBinder框架的一个驱动。源码位于drivers/staging/android/binder.c
+2)Android电源管理（PM） 源码位于kernel/power/earlysuspend.c;consoleearlysuspend.c;fbearlysuspend.c;wakelock.c;userwakelock.c
+3)低内存管理器 比Linux的OOM机制更加灵活。 源码位于drivers/staging/android/lowmemorykiller.c
+4)匿名共享内存（Ashmem）为进程提供大块内存共享，同时为内核提供回收和管理这个内存的机制。 源码位于mm/ashmem.c
+5)Android PMEM(Physical) 向用户空间提供连续的物理内存区域，DSP和某些设备只能工作在连续的物理内存上。 drivers/misc/pmem.c
+6)Android Logger 一个轻量级的日志设备，用于抓取Android系统的各种日志。 drivers/staging/android/logger.c
+7)Android Alarm 提供一个定时器，用于把设备从睡眠状态唤醒，同时还提供了一个即时在设备睡眠时也会运行的时钟基准。 drivers/rtc/alarm.c
+8)USB Gadget驱动 基于标准Linux USB gadget驱动框架的设备驱动。 drivers/usb/gadget
+9)Android Ram Console 提供调试功能，Android允许将调试日志信息写入一个被称为RAM Console的设备里。 drivers/staging/android/ram_console.c
+10)Android timed device 提供了对设备进行定时控制的功能，目前支持vibrator和LED设备 drivers/staging/android/timed_output.c(timed_gpio.c)
+11)Yaffs2 文件系统 一个快速稳定的应用于NAND和NOR Flash的跨平台的嵌入式设备文件系统。
+** Android对Linux内核的改动
+*** Goldfish
+** Android对Linux内核的增强
