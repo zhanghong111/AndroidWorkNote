@@ -1,0 +1,53 @@
+* android rom
+- 1.randisk.img 文件系统，包含/system,/data,/bin等目录。kernel启动时负责初始化
+- 2.system.img  系统包和库文件，挂载到/system目录
+- 3.userdata.img 用户数据，挂载到/data目录
+* Android系统目录结构
+- /init    系统启动文件
+- /system
+  - app    系统应用安装目录
+  - bin    常用的系统本地命令，大部分是toolbox的链接
+  - etc    系统配置文件，如hosts
+  - font   字体目录
+  - framework    java平台架构核心库，jar包和odex优化的文件
+  - lib    系统底层共享库，.so文件
+  - xbin   不常用的系统管理工具，相当于linux的/sbin
+  - media  
+    - audio  铃声，提示声音等音频文件，.ogg
+      - notifications  通知
+      - ui             界面
+      - alarms         警告
+      - ringtones      铃声
+  - usr
+    - keychars
+    - keylayout
+    - share
+    - srec         配置
+    - ....
+  - vendor
+  - build.prop    系统设置和变更属性
+- /etc --> /system/etc
+- /vendor --> /system/vendor
+- /dev    存放设备节点文件
+- /proc   全局系统信息
+- /data   用户软件和各种数据
+  - local/tmp   临时目录，无权限要求
+  - app         普通程序安装目录
+  - system
+    - location  其中的location.gps记录最后的坐标，LocationManager.getLastKnownLocation()数据来自此处
+  - data
+    - <package_name>    com.google.android.apps.nexuslauncher位于此处
+      - files           Context.getFilesDir(),Context.openFileOutput()获取的目录，应用安装目录下
+      - cache           Context.getCacheDir()获取的目录
+      - share_pref      Context.getSharedPreferences()建立的preferences文件（xml）存放目录
+  - anr    应用发送ANR（Application is Not Responding）时，Android将问题点的堆栈写入到traces.txt文件
+  - location
+    - gps    GPS location provicer 配置
+  - property    其中persist.sys.timezone记录系统时区
+- /sdcard --> /storage/emulated/legacy    SD卡的FAT32文件系统挂载到此目录
+  - Android
+    - data 
+      - <package_name>     应用的额外数据，应用卸载时自动删除
+        - files
+        - cache
+- lost+found    yaffs文件系统固有的，类似回收站的文件夹  

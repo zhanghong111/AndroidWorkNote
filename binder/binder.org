@@ -1,0 +1,210 @@
+* why binder
+1.效率
+#+TBLNAME： 各种IPC方式数据拷贝次数
+| IPC                  | 数据拷贝次数 |
+|----------------------+--------------|
+| 共享内存             |            0 |
+| Binder               |            1 |
+| Socket/管道/消息队列 |            2 |
+2.安全性
+Binder机制会为发送方添加UID/PID身份验证机制，即支持实名Binder也支持匿名Binder，安全性高。
+* 面向对象的Binder IPC
+在Server端存在一个Binder对象，Client端相当于需要建立一个Server端Binder对象的引用，进而可以调用Binder对象的方法。
+* Binder通信模型
+Binder框架定义了四个角色：Server，Client，ServiceManager和Binder驱动。前三个运行于用户空间，驱动运行于内核空间。四个角色可以类比互联网的四个角色：Server是服务器，Client是客户端，ServiceManager是DNS，Binder是路由器。
+** Binder驱动
+驱动是通信的核心，主要职责是：负责进程间通信的建立；Binder在进程之间的传递；Binder引用计数管理；数据包在进程之间的传递；交互
+** ServiceManager与实名Binder
+类似于服务器都有自己的URL，Server端也有类似的实名供Client查找Server。具体实现是：Server创建了Binder实体后，为其去一个易记的名字，通过Binder发送给SMgr进行注册。驱动为Binder对象创建位于内核的实体节点以及SMgr对实体的引用，传给SMgr。SMgr收到数据后，将名字和引用插入表中。
+Client与SMgr进行通信是通过0的引用号进行调用，好比DNS的地址必须预先配置好。
+** Client获得实名Binder的引用
+Client也通过0的引用向SMgr查询“张三”的引用（不知道名字就无法查询？？），SMgr通过名字在表中查询引用，并返回给Client。
+** 匿名Binder
+如果Server和Client已经存在一条建立好的Binder连接，Server就可以通过这条连接传送新的Binder引用。新建立的连接就是私密通道。别的进程也无法访问。
+** TODO Binder协议
+** TODO Binder表示
+* Binder内存映射和接收缓存区管理
+通过字符设备/dev/binder进行通信，内核通过mmap将字符设备同时映射到内核和目标进程，通过copy_from_user和copy_to_user将数据从Client拷贝到Server，由于mmap同时映射到内核和目标进程，数据相当于只拷贝了一次。
+* Binder接收线程管理
+进程会预先创建Binder线程，等待处理Binder连接。
+* 数据包接收队列与（线程）等待队列管理
+* Binder驱动的原理
+** 数据结构
+- binder_work
+#+begin_src c
+ struct binder_work {
+	struct list_head entry;
+	enum {
+		BINDER_WORK_TRANSACTION = 1,
+		BINDER_WORK_TRANSACTION_COMPLETE,
+		BINDER_WORK_NODE,
+		BINDER_WORK_DEAD_BINDER,
+		BINDER_WORK_DEAD_BINDER_AND_CLEAR,
+		BINDER_WORK_CLEAR_DEATH_NOTIFICATION,
+	} type;
+};
+#+end_src
+- binder类型
+#+begin_src c
+enum {
+	BINDER_TYPE_BINDER	= B_PACK_CHARS('s', 'b', '*', B_TYPE_LARGE),
+	BINDER_TYPE_WEAK_BINDER	= B_PACK_CHARS('w', 'b', '*', B_TYPE_LARGE),
+	BINDER_TYPE_HANDLE	= B_PACK_CHARS('s', 'h', '*', B_TYPE_LARGE),
+	BINDER_TYPE_WEAK_HANDLE	= B_PACK_CHARS('w', 'h', '*', B_TYPE_LARGE),
+	BINDER_TYPE_FD		= B_PACK_CHARS('f', 'd', '*', B_TYPE_LARGE),
+};
+#+end_src
+- binder object
+#+begin_src c
+/*
+ * This is the flattened representation of a Binder object for transfer
+ * between processes.  The 'offsets' supplied as part of a binder transaction
+ * contains offsets into the data where these structures occur.  The Binder
+ * driver takes care of re-writing the structure type and data as it moves
+ * between processes.
+ */
+struct flat_binder_object {
+	/* 8 bytes for large_flat_header. */
+	unsigned long		type;  //对象或引用（local or remote）
+	unsigned long		flags; //同步或异步
+
+	/* 8 bytes of data. */
+	union {
+		void		*binder;	/* local object */
+		signed long	handle;		/* remote object */
+	};
+
+	/* extra data associated with local object */
+	void			*cookie;
+};
+#+end_src
+- binder_transaction_data
+#+begin_src c
+struct binder_transaction_data {
+	/* The first two are only used for bcTRANSACTION and brTRANSACTION,
+	 * identifying the target and contents of the transaction.
+	 */
+	union {
+		size_t	handle;	/* target descriptor of command transaction */
+		void	*ptr;	/* target descriptor of return transaction */
+	} target;
+	void		*cookie;	/* target object cookie */
+	unsigned int	code;		/* transaction command */
+
+	/* General information about the transaction. */
+	unsigned int	flags;
+	pid_t		sender_pid;
+	uid_t		sender_euid;
+	size_t		data_size;	/* number of bytes of data */
+	size_t		offsets_size;	/* number of bytes of offsets */
+
+	/* If this transaction is inline, the data immediately
+	 * follows here; otherwise, it ends with a pointer to
+	 * the data buffer.
+	 */
+	union {
+		struct {
+			/* transaction data */
+			const void	*buffer;
+			/* offsets from buffer to flat_binder_object structs */
+			const void	*offsets;
+		} ptr;
+		uint8_t	buf[8];
+	} data;
+};
+#+end_src
+- binder_write_read
+#+begin_src c
+/*
+ * On 64-bit platforms where user code may run in 32-bits the driver must
+ * translate the buffer (and local binder) addresses apropriately.
+ */
+
+struct binder_write_read {
+	signed long	write_size;	/* bytes to write */
+	signed long	write_consumed;	/* bytes consumed by driver */
+	unsigned long	write_buffer;
+	signed long	read_size;	/* bytes to read */
+	signed long	read_consumed;	/* bytes consumed by driver */
+	unsigned long	read_buffer;
+};
+#+end_src
+- binder_proc 
+#+begin_src c
+struct binder_proc {
+	struct hlist_node proc_node;
+	struct rb_root threads;
+	struct rb_root nodes;
+	struct rb_root refs_by_desc;
+	struct rb_root refs_by_node;
+	int pid;
+	struct vm_area_struct *vma;
+	struct task_struct *tsk;
+	struct files_struct *files;
+	struct hlist_node deferred_work_node;
+	int deferred_work;
+	void *buffer;
+	ptrdiff_t user_buffer_offset;
+
+	struct list_head buffers;
+	struct rb_root free_buffers;
+	struct rb_root allocated_buffers;
+	size_t free_async_space;
+
+	struct page **pages;
+	size_t buffer_size;
+	uint32_t buffer_free;
+	struct list_head todo;
+	wait_queue_head_t wait;
+	struct binder_stats stats;
+	struct list_head delivered_death;
+	int max_threads;
+	int requested_threads;
+	int requested_threads_started;
+	int ready_threads;
+	long default_priority;
+};
+#+end_src
+- binder_node
+#+begin_src c
+struct binder_node {
+	int debug_id;
+	struct binder_work work;
+	union {
+		struct rb_node rb_node;
+		struct hlist_node dead_node;
+	};
+	struct binder_proc *proc;
+	struct hlist_head refs;
+	int internal_strong_refs;
+	int local_weak_refs;
+	int local_strong_refs;
+	void __user *ptr;
+	void __user *cookie;
+	unsigned has_strong_ref:1;
+	unsigned pending_strong_ref:1;
+	unsigned has_weak_ref:1;
+	unsigned pending_weak_ref:1;
+	unsigned has_async_transaction:1;
+	unsigned accept_fds:1;
+	unsigned min_priority:8;
+	struct list_head async_todo;
+};
+#+end_src
+- binder_thread 
+#+begin_src c
+struct binder_thread {
+	struct binder_proc *proc;
+	struct rb_node rb_node;
+	int pid;
+	int looper;
+	struct binder_transaction *transaction_stack;
+	struct list_head todo;
+	uint32_t return_error; /* Write failed, return error code in read buf */
+	uint32_t return_error2; /* Write failed, return error code in read */
+		/* buffer. Used when sending a reply to a dead process that */
+		/* we are also waiting on */
+	wait_queue_head_t wait;
+	struct binder_stats stats;
+};
+#+end_src
