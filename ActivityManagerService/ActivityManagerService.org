@@ -1,0 +1,31 @@
+* AMS功能概述
+AMS寄存与systemServer，在系统启动时，创建一个线程来循环处理客户的请求。值得一提的是，AMS会向ServiceManager登记多种Binder Server如“activity” "meminfo" "cpuinfo"等--不过只有第一个“activity”才是AMS的 “主业”，并由ActivityManagerService实现；剩余服务的功能则是由其他类提供的。
+AMS启动后，会向ServerManager注册，需要注意的是它不只注册了自己一个Server，而是一系列与进程管理相关的服务。
+** AMS主要工作
+- 1.组件状态管理
+  这里的组件不仅仅指Activity，而是所有四大组件。状态管理包括组件的开启、关闭等一系列操作
+- 2.组件状态查询
+  这类函数用于查询组件当前的运行情况，如getCallingActivity,getServices等
+- 3.Task相关
+  Task相关的函数包括removeSubTask,removeTask,moveTaskBackwards,moveTaskToFront
+- 4.其他
+  AMS还提供了不少辅助功能，如系统运行时信息的查询（getMemoryInfo,setDebugApp等）
+* 管理当前系统中Activity状态--ActivityStack
+** 数据结构
+- ActivityStack
+- ActivityState
+- ArrayList
+  列表元素都是ActivityRecord--这个类负责记录每个Activity的运行时信息
+- ActivityRecord
+** 总结
+- 1.AMS的主要工作就是管理、记录、查询
+- 2.AMS独立运行于一个独立的线程中
+  AMS只是管理Activity的状态信息，而像Activity中描述的ui界面如何在物理屏幕上显示等工作则是由WindowManagerService和SurfaceFlinger来完成的
+* startActivity流程
+startActivity(Intent),用于启动一个目标Activity--具体是哪个Activity则是AMS通过系统中安装的所有程序包进行“Intent匹配”得到的，并不局限于调用者本身所在的package范围。换句话说，startActivity最终很可能启动的是其他进程中的组件，当系统匹配到某个目标Activity后分为两种情况：
+- 1.如果程序包中已经有其他元素在运行，那么AMS就会通知这个进程来加载运行我们指定的Activity
+- 2.如果当前Activity所属程序没有进程在运行，AMS就会先启动它的一个实例，然后让其运行目标Activity
+* 完成同一任务的“集合”---Activity Task
+将不同进程的Activity采用Stack的方式，组织成一个Task，使得不同进程的功能可以复用。
+-- 后进先出
+-- 管理Activity Task
