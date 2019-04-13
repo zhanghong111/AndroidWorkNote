@@ -1,0 +1,11 @@
+* init
+在bootloader和kernel之后启动的第一个进程，PID为0，通过解析init.rc来启动系统关键服务
+* ServiceManager
+位于/system/bin/servicemanager，是android的“DNS服务器”，servicemanager每次重启时，Zygote,media,surfaceflinger等也会被restart。
+* Zygote
+英文直译是“受精卵”，是Android进程的”孵化器“，前期主要担任启动系统服务的工作，后期有担当“程序孵化”的重任，init.rc脚本中会配一些参数到Zygote解析，分为32位64位，主要工作过程是：注册一个socket---预加载各类资源---启动system server和孵化其他程序
+* system server 
+启动三种类型的服务：
+- Bootstrap Services  先启动Installer， 接下来启动ActivityManagerservice
+- Core Services     
+- Other Services
